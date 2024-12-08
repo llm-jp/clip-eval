@@ -1,0 +1,27 @@
+[project]
+name = "clip-eval"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "transformers>=4.47.0",
+    "datasets>=3.1.0",
+    "pillow>=11.0.0",
+    "torch>=2.5.1",
+    "torchvision>=0.20.1",
+    "sentencepiece>=0.2.0",
+    "timm>=1.0.12",
+    "scipy>=1.14.1",
+    "open-clip-torch>=2.29.0",
+]
+
+[project.scripts]
+hello = "clip_eval:hello"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
