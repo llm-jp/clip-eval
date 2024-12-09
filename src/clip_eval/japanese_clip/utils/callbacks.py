@@ -80,6 +80,8 @@ class ImagenetClassificationCallback:
             logits = 100.0 * image_features @ zeroshot_weights
 
             # measure accuracy
+            print(f"logits: {logits}")
+            print(f"target: {target}")
             accs = accuracy(logits, target, topk=top_ns)
             for j in range(len(top_ns)):
                 acc_counters[j] += accs[j]

@@ -72,9 +72,7 @@ def tokenize(
     )
 
 
-def load(
-    model_name: str = "stabilityai/japanese-stable-clip-vit-l-16",
-    device="cpu"):
+def load(model_name: str = "stabilityai/japanese-stable-clip-vit-l-16", device="cpu"):
     model = AutoModel.from_pretrained(model_name, trust_remote_code=True).to(device)
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     processor = AutoImageProcessor.from_pretrained(model_name, trust_remote_code=True)
@@ -95,9 +93,7 @@ if __name__ == "__main__":
     import torch
     from transformers import AutoImageProcessor, AutoModel, AutoTokenizer
 
-    model, processor, tokenizer = load(
-        "stabilityai/japanese-stable-clip-vit-l-16"
-    )
+    model, processor, tokenizer = load("stabilityai/japanese-stable-clip-vit-l-16")
     image = Image.open(
         io.BytesIO(
             requests.get(
