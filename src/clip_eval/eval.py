@@ -1,9 +1,20 @@
 import pandas as pd
 import torch
 from datasets import load_dataset
-from japanese_clip.utils.callbacks import ImagenetClassificationCallback
-
+from japanese_clip.utils.callbacks import ClassificationCallback
+import os
 import argparse
+from logging import getLogger, basicConfig
+import json
+
+logger = getLogger(__name__)
+logger.setLevel("INFO")
+# basic config
+basicConfig(
+    level="INFO",
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 
 
 def get_args():
@@ -23,7 +34,7 @@ def get_args():
     parser.add_argument(
         "--dataset_name",
         type=str,
-        default="ILSVRC/imagenet-1k",
+        default="imagenet-1k",
         help="Dataset name",
     )
     parser.add_argument(
@@ -32,33 +43,24 @@ def get_args():
         default=32,
         help="Batch size",
     )
+    parser.add_argument(
+        "--result_dir",
+        type=str,
+        default="results",
+        help="Result directory",
+    )
     args = parser.parse_args()
     return args
 
 
-if __name__ == "__main__":
-    args = get_args()
-    device = args.device
-    # load model, tokenizer
-    # model_name = "line-corporation/clip-japanese-base"
-    # model_name = "rinna/japanese-clip-vit-b-16"
-    # model_name = "rinna/japanese-cloob-vit-b-16"
-    # model_name = "xlm-roberta-large-ViT-H-14"
-
-    model_name = args.model_name
+def load_model(model_name, device) -> tuple:
     if model_name == "line-corporation/clip-japanese-base":
         from line_clip import load
-
-        wrap_model, preprocess, tokenizer = load(
-            "line-corporation/clip-japanese-base", device=device
-        )
     elif (
         model_name == "rinna/japanese-clip-vit-b-16"
         or model_name == "rinna/japanese-cloob-vit-b-16"
     ):
         from rinna import load
-
-        wrap_model, preprocess, tokenizer = load(model_name, device=device)
     elif (
         model_name
         == "hf-hub:laion/CLIP-ViT-H-14-frozen-xlm-roberta-large-laion5B-s13B-b90k"
@@ -66,14 +68,19 @@ if __name__ == "__main__":
         == "hf-hub:speed/llm-jp-roberta-pretrained-ViT-B-16-relaion-1.5B-lr1e-4-bs8k-accum4-2024112-epoch87"
     ):
         from open_clip_model import load
-
-        wrap_model, preprocess, tokenizer = load(model_name, device=device)
+    elif model_name == "stabilityai/japanese-stable-clip-vit-l-16":
+        from stability_clip import load
     else:
         raise ValueError(f"Unknown model_name: {model_name}")
+    wrap_model, preprocess, tokenizer = load(model_name, device=device)
+    return wrap_model, preprocess, tokenizer
 
-    print("Model: ", model_name)
 
-    if args.dataset_name == "ILSVRC/imagenet-1k":
+if __name__ == "__main__":
+    args = get_args()
+    wrap_model, preprocess, tokenizer = load_model(args.model_name, args.device)
+
+    if args.dataset_name == "imagenet-1k":
         dataset = load_dataset(
             "ILSVRC/imagenet-1k",
             split="validation",
@@ -86,13 +93,11 @@ if __name__ == "__main__":
         )
 
         templates_df = pd.DataFrame.from_dict(imagenet_templates)
+        templates = templates_df["ja"].values.tolist()
         classes_df = pd.DataFrame.from_dict(imagenet_classnames)
-        imagenet_classes = classes_df["ja"].values.tolist()
-        imagenet_templates_lan = templates_df["ja"].values.tolist()
-        print(
-            f"{len(imagenet_classes)} classes, {len(imagenet_templates_lan)} templates"
-        )
-    elif args.dataset_name == "speed/japanese-image-classification-evaluation-dataset":
+        classnames = classes_df["ja"].values.tolist()
+
+    elif args.dataset_name == "recruit":
         dataset = load_dataset(
             "speed/japanese-image-classification-evaluation-dataset",
             split="train",
@@ -105,11 +110,11 @@ if __name__ == "__main__":
         )
 
         templates_df = pd.DataFrame.from_dict(imagenet_templates)
-        # imagenet_classes = dataset.features["label"].names
-        imagenet_classes = dataset.unique("category")
-        imagenet_templates_lan = templates_df["ja"].values.tolist()
+        templates = templates_df["ja"].values.tolist()
+        classnames = dataset.unique("category")
+
         # category to id
-        category_to_id = {category: i for i, category in enumerate(imagenet_classes)}
+        category_to_id = {category: i for i, category in enumerate(classnames)}
         dataset = dataset.map(
             lambda x: {"label": category_to_id[x["category"]]},
             remove_columns=["category"],
@@ -117,17 +122,9 @@ if __name__ == "__main__":
         dataset = dataset.map(
             lambda x: {"image": x["jpg"]}, remove_columns=["jpg"], num_proc=32
         )
-        dataset = dataset.filter(lambda example: example["image"] is not None)
-        print(len(dataset))
+    else:
+        raise ValueError(f"Unknown dataset_name: {args.dataset_name}")
 
-        print(
-            f"{len(imagenet_classes)} classes, {len(imagenet_templates_lan)} templates"
-        )
-
-    # transform = transforms.Compose([
-    #         transforms.Resize((224, 224)),  # Resize to 224x224
-    #         transforms.ToTensor(),  # Convert PIL Image to tensor
-    # ])
     def collate_fn(batch):
         # images = [transform(x["image"].convert("RGB")) for x in batch]
         images = [preprocess(x["image"].convert("RGB")) for x in batch]
@@ -135,7 +132,7 @@ if __name__ == "__main__":
         targets = torch.tensor([x["label"] for x in batch])
         return images, targets
 
-    imagenet_dataloader = torch.utils.data.DataLoader(
+    dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
         shuffle=False,
@@ -144,12 +141,14 @@ if __name__ == "__main__":
         drop_last=False,
         collate_fn=collate_fn,
     )
-    # print(next(iter(imagenet_dataloader)))
-    # print(imagenet_dataloader)
-    # print(next(iter(imagenet_dataloader))[0].shape)
-    imagenet_callback = ImagenetClassificationCallback(
-        imagenet_classes, imagenet_templates_lan, imagenet_dataloader
+    logger.info(
+        f"Start Zero-shot Image Classification: {args.model_name} on {args.dataset_name}"
     )
-    result_dict = imagenet_callback.zeroshot(wrap_model, tokenizer)
-    print(result_dict)
-    # prints: {"top1": xx, "top5": xx, "top10": xx, "top100": xx}
+    logger.info(f"{len(classnames)} classes, {len(templates)} templates")
+
+    callback = ClassificationCallback(classnames, templates, dataloader)
+    result_dict = callback.zeroshot(wrap_model, tokenizer)
+    result_dir = f"{args.result_dir}/{args.dataset_name}"
+    os.makedirs(result_dir, exist_ok=True)
+    with open(f"{result_dir}/{args.model_name.replace('/', '-')}.json", "w") as f:
+        json.dump(result_dict, f, indent=4, ensure_ascii=False)

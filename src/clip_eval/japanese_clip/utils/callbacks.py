@@ -16,6 +16,10 @@
 from tqdm.auto import tqdm
 import numpy as np
 import torch
+from logging import getLogger
+
+logger = getLogger(__name__)
+logger.setLevel("INFO")
 
 
 def accuracy(output, target, topk=(1,)):
@@ -29,16 +33,16 @@ def accuracy(output, target, topk=(1,)):
     ]
 
 
-class ImagenetClassificationCallback:
+class ClassificationCallback:
     def __init__(
         self,
-        imagenet_classes,
-        imagenet_templates,
-        imagenet_dataloader,
+        classes,
+        templates,
+        dataloader,
     ):
-        self.imagenet_classes = imagenet_classes
-        self.imagenet_templates = imagenet_templates
-        self.imagenet_dataloader = imagenet_dataloader
+        self.classes = classes
+        self.templates = templates
+        self.dataloader = dataloader
 
     def zeroshot_classifier(self, model, tokenizer, classnames, templates):
         zeroshot_weights = []
@@ -60,15 +64,15 @@ class ImagenetClassificationCallback:
         return zeroshot_weights
 
     def zeroshot(self, model, tokenizer) -> dict:
-        print("Imagenet Zeroshot Classification...")
+        logger.info("Zeroshot Classification...")
         zeroshot_weights = self.zeroshot_classifier(
-            model, tokenizer, self.imagenet_classes, self.imagenet_templates
+            model, tokenizer, self.classes, self.templates
         )
         top_ns = [1, 5, 10, 100]
         acc_counters = [0.0 for _ in top_ns]
         n = 0.0
 
-        for i, (images, target) in enumerate(tqdm(self.imagenet_dataloader)):
+        for i, (images, target) in enumerate(tqdm(self.dataloader)):
             target = target.numpy()
             # predict
             image_features = (
@@ -86,8 +90,7 @@ class ImagenetClassificationCallback:
             n += images.shape[0]
 
         tops = {
-            f"imagenet/top{top_ns[i]}": acc_counters[i] / n * 100
-            for i in range(len(top_ns))
+            f"top{top_ns[i]}": acc_counters[i] / n * 100 for i in range(len(top_ns))
         }
 
         return tops

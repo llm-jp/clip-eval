@@ -21,8 +21,11 @@ class JaCLIPForBenchmark:
         return self.model.get_text_features(**dict_tensor)
 
     def get_image_features(self, image):
-        print(image)
         return self.model.get_image_features(image)
+
+    @property
+    def device(self):
+        return self.model.device
 
 
 # taken from https://github.com/mlfoundations/open_clip/blob/main/src/open_clip/tokenizer.py#L65C8-L65C8
