@@ -59,7 +59,12 @@ if __name__ == "__main__":
         from rinna import load
 
         wrap_model, preprocess, tokenizer = load(model_name, device=device)
-    elif model_name == "xlm-roberta-large-ViT-H-14":
+    elif (
+        model_name
+        == "hf-hub:laion/CLIP-ViT-H-14-frozen-xlm-roberta-large-laion5B-s13B-b90k"
+        or model_name
+        == "hf-hub:speed/llm-jp-roberta-pretrained-ViT-B-16-relaion-1.5B-lr1e-4-bs8k-accum4-2024112-epoch87"
+    ):
         from open_clip_model import load
 
         wrap_model, preprocess, tokenizer = load(model_name, device=device)
@@ -87,7 +92,6 @@ if __name__ == "__main__":
         print(
             f"{len(imagenet_classes)} classes, {len(imagenet_templates_lan)} templates"
         )
-
     elif args.dataset_name == "speed/japanese-image-classification-evaluation-dataset":
         dataset = load_dataset(
             "speed/japanese-image-classification-evaluation-dataset",
@@ -140,23 +144,9 @@ if __name__ == "__main__":
         drop_last=False,
         collate_fn=collate_fn,
     )
-    print(next(iter(imagenet_dataloader)))
-
-    # dataset = torchvision.datasets.ImageNet("imagenet_val", split="val", transform=preprocess)
-    # imagenet_dataloader = torch.utils.data.DataLoader(
-    #     dataset,
-    #     batch_size=64,
-    #     shuffle=False,
-    #     num_workers=2,
-    #     persistent_workers=True,
-    #     drop_last=False,
-    #     collate_fn=None,
-    # )
-
+    # print(next(iter(imagenet_dataloader)))
     # print(imagenet_dataloader)
     # print(next(iter(imagenet_dataloader))[0].shape)
-    # import os
-    # os._exit(0)
     imagenet_callback = ImagenetClassificationCallback(
         imagenet_classes, imagenet_templates_lan, imagenet_dataloader
     )

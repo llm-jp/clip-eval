@@ -94,6 +94,7 @@ if __name__ == "__main__":
     from transformers import AutoImageProcessor, AutoModel, AutoTokenizer
 
     model, processor, tokenizer = load("stabilityai/japanese-stable-clip-vit-l-16")
+    print(model.model.num_parameters())
     image = Image.open(
         io.BytesIO(
             requests.get(

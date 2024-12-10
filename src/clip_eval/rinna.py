@@ -51,7 +51,8 @@ if __name__ == "__main__":
     from PIL import Image
     import torch
 
-    model, preprocess, tokenizer = load("rinna/japanese-clip-vit-b-16")
+    model, preprocess, tokenizer = load("rinna/japanese-cloob-vit-b-16")
+    print(model.model.num_parameters())
     image = Image.open(
         io.BytesIO(
             requests.get(

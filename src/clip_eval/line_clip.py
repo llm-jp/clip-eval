@@ -29,6 +29,7 @@ def load(model_name: str, device: str = "cuda" if torch.cuda.is_available() else
         return processor(x, return_tensors="pt")["pixel_values"].squeeze(0)
 
     model = AutoModel.from_pretrained(model_name, trust_remote_code=True).to(device)
+    model.eval()
 
     def tokenizer_wrapper(x):
         return tokenizer(x)
