@@ -69,6 +69,8 @@ class ClassificationCallback:
             model, tokenizer, self.classes, self.templates
         )
         top_ns = [1, 5, 10, 100]
+        # if target classes is < 100, top_ns is adjusted
+        top_ns = [min(top_n, len(self.classes)) for top_n in top_ns]
         acc_counters = [0.0 for _ in top_ns]
         n = 0.0
 
@@ -82,7 +84,6 @@ class ClassificationCallback:
                 image_features, axis=-1, keepdims=True
             )
             logits = 100.0 * image_features @ zeroshot_weights
-
             # measure accuracy
             accs = accuracy(logits, target, topk=top_ns)
             for j in range(len(top_ns)):

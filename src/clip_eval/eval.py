@@ -70,6 +70,11 @@ def load_model(model_name, device) -> tuple:
         from open_clip_model import load
     elif model_name == "stabilityai/japanese-stable-clip-vit-l-16":
         from stability_clip import load
+    elif (
+        model_name == "openai/clip-vit-base-patch16"
+        or model_name == "openai/clip-vit-large-patch14"
+    ):
+        from clip import load
     else:
         raise ValueError(f"Unknown model_name: {model_name}")
     wrap_model, preprocess, tokenizer = load(model_name, device=device)
@@ -79,6 +84,10 @@ def load_model(model_name, device) -> tuple:
 if __name__ == "__main__":
     args = get_args()
     wrap_model, preprocess, tokenizer = load_model(args.model_name, args.device)
+    from japanese_clip.utils.imagenet_zeroshot_data import imagenet_templates
+
+    templates_df = pd.DataFrame.from_dict(imagenet_templates)
+    templates = templates_df["ja"].values.tolist()
 
     if args.dataset_name == "imagenet-1k":
         dataset = load_dataset(
@@ -87,13 +96,8 @@ if __name__ == "__main__":
             num_proc=32,
             trust_remote_code=True,
         )
-        from japanese_clip.utils.imagenet_zeroshot_data import (
-            imagenet_templates,
-            imagenet_classnames,
-        )
+        from japanese_clip.utils.imagenet_zeroshot_data import imagenet_classnames
 
-        templates_df = pd.DataFrame.from_dict(imagenet_templates)
-        templates = templates_df["ja"].values.tolist()
         classes_df = pd.DataFrame.from_dict(imagenet_classnames)
         classnames = classes_df["ja"].values.tolist()
 
@@ -104,15 +108,7 @@ if __name__ == "__main__":
             num_proc=32,
             trust_remote_code=True,
         )
-        from japanese_clip.utils.imagenet_zeroshot_data import (
-            imagenet_templates,
-            imagenet_classnames,
-        )
-
-        templates_df = pd.DataFrame.from_dict(imagenet_templates)
-        templates = templates_df["ja"].values.tolist()
         classnames = dataset.unique("category")
-
         # category to id
         category_to_id = {category: i for i, category in enumerate(classnames)}
         dataset = dataset.map(
@@ -122,6 +118,47 @@ if __name__ == "__main__":
         dataset = dataset.map(
             lambda x: {"image": x["jpg"]}, remove_columns=["jpg"], num_proc=32
         )
+    elif args.dataset_name == "cifar100":
+        from clip_eval.dataset.cifar100 import LABEL_MAPPING
+
+        dataset = load_dataset(
+            "uoft-cs/cifar100",
+            split="test",
+            num_proc=32,
+            trust_remote_code=True,
+        )
+        classnames_en = dataset.features["fine_label"].names
+        classnames = [LABEL_MAPPING[cls] for cls in classes_en]
+        dataset = dataset.map(
+            lambda x: {"label": x["fine_label"]},
+            remove_columns=["fine_label"],
+            num_proc=32,
+        )
+        dataset = dataset.rename_column("img", "image")
+    elif args.dataset_name == "cifar10":
+        from clip_eval.dataset.cifar10 import LABEL_MAPPING
+
+        dataset = load_dataset(
+            "uoft-cs/cifar10",
+            split="test",
+            num_proc=32,
+            trust_remote_code=True,
+        )
+        classnames_en = dataset.features["label"].names
+        classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
+        dataset = dataset.rename_column("img", "image")
+    elif args.dataset_name == "food101":
+        from clip_eval.dataset.food101 import LABEL_MAPPING
+
+        dataset = load_dataset("ethz/food101", num_proc=32, split="validation")
+        classnames_en = dataset.features["label"].names
+        classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
+    elif args.dataset_name == "caltech101":
+        from clip_eval.dataset.caltech101 import LABEL_MAPPING
+
+        dataset = load_dataset("flwrlabs/caltech101", num_proc=32, split="train")
+        classnames_en = dataset.features["label"].names
+        classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
     else:
         raise ValueError(f"Unknown dataset_name: {args.dataset_name}")
 

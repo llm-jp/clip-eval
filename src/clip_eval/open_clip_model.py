@@ -46,7 +46,29 @@ def load(
 
 
 if __name__ == "__main__":
-    model, preprocess, tokenizer = load(
-        "hf-hub:laion/CLIP-ViT-H-14-frozen-xlm-roberta-large-laion5B-s13B-b90k"
+    import io
+    import requests
+    from PIL import Image
+    import torch
+
+    model_name = "hf-hub:laion/CLIP-ViT-H-14-frozen-xlm-roberta-large-laion5B-s13B-b90k"
+    # model_name = "hf-hub:speed/llm-jp-roberta-pretrained-ViT-B-16-relaion-1.5B-lr1e-4-bs8k-accum4-2024112-epoch87"
+    model, processor, tokenizer = load(model_name)
+
+    image = Image.open(
+        io.BytesIO(
+            requests.get(
+                "https://images.pexels.com/photos/2253275/pexels-photo-2253275.jpeg?auto=compress&cs=tinysrgb&dpr=3&h=750&w=1260"
+            ).content
+        )
     )
-    print(sum(p.numel() for p in model.model.parameters()))
+
+    images = processor(image).unsqueeze(0)
+    print(images.shape)
+    # text = tokenizer(["doc", "cat", "elephant"])
+    text = tokenizer(["犬", "猫", "象"])
+    with torch.no_grad():
+        image_features = model.get_image_features(images.to(model.device))
+        text_features = model.get_text_features(text.to(model.device))
+        text_probs = (100.0 * image_features @ text_features.T).softmax(dim=-1)
+        print(text_probs)
