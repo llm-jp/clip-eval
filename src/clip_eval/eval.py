@@ -53,27 +53,16 @@ def get_args():
     return args
 
 
-def load_model(model_name, device) -> tuple:
+def load_model(model_name: str, device) -> tuple:
     if model_name == "line-corporation/clip-japanese-base":
         from line_clip import load
-    elif (
-        model_name == "rinna/japanese-clip-vit-b-16"
-        or model_name == "rinna/japanese-cloob-vit-b-16"
-    ):
+    elif model_name.startswith("rinna"):
         from rinna import load
-    elif (
-        model_name
-        == "hf-hub:laion/CLIP-ViT-H-14-frozen-xlm-roberta-large-laion5B-s13B-b90k"
-        or model_name
-        == "hf-hub:speed/llm-jp-roberta-pretrained-ViT-B-16-relaion-1.5B-lr1e-4-bs8k-accum4-2024112-epoch87"
-    ):
+    elif model_name.startswith("hf-hub:"):
         from open_clip_model import load
     elif model_name == "stabilityai/japanese-stable-clip-vit-l-16":
         from stability_clip import load
-    elif (
-        model_name == "openai/clip-vit-base-patch16"
-        or model_name == "openai/clip-vit-large-patch14"
-    ):
+    elif model_name.startswith("openai"):
         from clip import load
     else:
         raise ValueError(f"Unknown model_name: {model_name}")
@@ -128,7 +117,7 @@ if __name__ == "__main__":
             trust_remote_code=True,
         )
         classnames_en = dataset.features["fine_label"].names
-        classnames = [LABEL_MAPPING[cls] for cls in classes_en]
+        classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
         dataset = dataset.map(
             lambda x: {"label": x["fine_label"]},
             remove_columns=["fine_label"],
