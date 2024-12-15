@@ -1,5 +1,5 @@
 import torch
-import japanese_clip as ja_clip
+import clip_eval.japanese_clip as ja_clip
 from typing import Union
 from typing import Dict
 

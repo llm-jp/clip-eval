@@ -55,15 +55,17 @@ def get_args():
 
 def load_model(model_name: str, device) -> tuple:
     if model_name == "line-corporation/clip-japanese-base":
-        from line_clip import load
+        from clip_eval.model.line_clip import load
     elif model_name.startswith("rinna"):
-        from rinna import load
+        from clip_eval.model.rinna import load
     elif model_name.startswith("hf-hub:"):
-        from open_clip_model import load
+        from clip_eval.model.open_clip_model import load
     elif model_name == "stabilityai/japanese-stable-clip-vit-l-16":
-        from stability_clip import load
+        from clip_eval.model.stability_clip import load
     elif model_name.startswith("openai"):
-        from clip import load
+        from clip_eval.model.clip import load
+    elif model_name.startswith("jinaai"):
+        from clip_eval.model.jina import load
     else:
         raise ValueError(f"Unknown model_name: {model_name}")
     wrap_model, preprocess, tokenizer = load(model_name, device=device)
@@ -73,7 +75,7 @@ def load_model(model_name: str, device) -> tuple:
 if __name__ == "__main__":
     args = get_args()
     wrap_model, preprocess, tokenizer = load_model(args.model_name, args.device)
-    from japanese_clip.utils.imagenet_zeroshot_data import imagenet_templates
+    from clip_eval.japanese_clip.utils.imagenet_zeroshot_data import imagenet_templates
 
     templates_df = pd.DataFrame.from_dict(imagenet_templates)
     templates = templates_df["ja"].values.tolist()
@@ -154,7 +156,8 @@ if __name__ == "__main__":
     def collate_fn(batch):
         # images = [transform(x["image"].convert("RGB")) for x in batch]
         images = [preprocess(x["image"].convert("RGB")) for x in batch]
-        images = torch.stack(images)
+        if isinstance(images[0], torch.Tensor):
+            images = torch.stack(images)
         targets = torch.tensor([x["label"] for x in batch])
         return images, targets
 

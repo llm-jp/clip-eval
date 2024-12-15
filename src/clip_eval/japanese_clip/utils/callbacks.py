@@ -48,11 +48,13 @@ class ClassificationCallback:
         zeroshot_weights = []
         for classname in tqdm(classnames):
             texts = [template.format(classname) for template in templates]
+            tokenized_texts = tokenizer(texts)
+            try:
+                tokenized_texts = tokenized_texts.to(model.device)
+            except AttributeError:
+                tokenized_texts = tokenized_texts
             class_embeddings = (
-                model.get_text_features(tokenizer(texts).to(model.device))
-                .detach()
-                .cpu()
-                .numpy()
+                model.get_text_features(tokenized_texts).detach().cpu().numpy()
             )
             class_embeddings = class_embeddings / np.linalg.norm(
                 class_embeddings, axis=-1, keepdims=True
@@ -77,9 +79,11 @@ class ClassificationCallback:
         for i, (images, target) in enumerate(tqdm(self.dataloader)):
             target = target.numpy()
             # predict
-            image_features = (
-                model.get_image_features(images.to(model.device)).detach().cpu().numpy()
-            )
+            try:
+                images = images.to(model.device)
+            except AttributeError:
+                images = images
+            image_features = model.get_image_features(images).detach().cpu().numpy()
             image_features = image_features / np.linalg.norm(
                 image_features, axis=-1, keepdims=True
             )
@@ -88,7 +92,7 @@ class ClassificationCallback:
             accs = accuracy(logits, target, topk=top_ns)
             for j in range(len(top_ns)):
                 acc_counters[j] += accs[j]
-            n += images.shape[0]
+            n += len(images)
 
         tops = {
             f"top{top_ns[i]}": acc_counters[i] / n * 100 for i in range(len(top_ns))
