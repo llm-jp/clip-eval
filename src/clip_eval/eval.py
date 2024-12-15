@@ -66,6 +66,8 @@ def load_model(model_name: str, device) -> tuple:
         from clip_eval.model.clip import load
     elif model_name.startswith("jinaai"):
         from clip_eval.model.jina import load
+    elif model_name.startswith("google"):
+        from clip_eval.model.siglip import load
     else:
         raise ValueError(f"Unknown model_name: {model_name}")
     wrap_model, preprocess, tokenizer = load(model_name, device=device)
