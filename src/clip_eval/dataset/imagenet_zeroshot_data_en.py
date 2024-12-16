@@ -1,3 +1,5 @@
+# Ref: https://github.com/rinnakk/japanese-clip
+
 imagenet_classnames = [
     "tench",
     "goldfish",

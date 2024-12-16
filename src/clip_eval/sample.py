@@ -1,6 +1,6 @@
 from PIL import Image
 import torch
-import japanese_clip as ja_clip
+from clip_eval.japanese_clip import ja_clip
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 # ja_clip.available_models()

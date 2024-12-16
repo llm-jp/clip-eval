@@ -3,6 +3,7 @@ import requests
 from transformers import AutoProcessor, AutoModel
 import torch
 
+
 class WrapModel:
     def __init__(self, model):
         self.model = model
@@ -17,15 +18,20 @@ class WrapModel:
     def device(self):
         return self.model.device
 
-def load(model_name: str = "google/siglip-base-patch16-256-multilingual", device: str = "cuda" if torch.cuda.is_available() else "cpu"):
+
+def load(
+    model_name: str = "google/siglip-base-patch16-256-multilingual",
+    device: str = "cuda" if torch.cuda.is_available() else "cpu",
+):
     model = AutoModel.from_pretrained(model_name, trust_remote_code=True).to(device)
     processor = AutoProcessor.from_pretrained(model_name, trust_remote_code=True)
     image_processor = processor.image_processor
+
     def processor_wrapper(x):
         return image_processor(x, return_tensors="pt")["pixel_values"].squeeze(0)
 
     def tokenizer_wrapper(x):
-        return processor(x, return_tensors="pt", padding=True, truncation=True)
+        return processor(x, return_tensors="pt", padding="max_length")
 
     return WrapModel(model), processor_wrapper, tokenizer_wrapper
 

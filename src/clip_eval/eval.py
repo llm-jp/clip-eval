@@ -1,7 +1,7 @@
 import pandas as pd
 import torch
 from datasets import load_dataset
-from japanese_clip.utils.callbacks import ClassificationCallback
+from clip_eval.zeroshot_classification import ClassificationCallback
 import os
 import argparse
 from logging import getLogger, basicConfig
@@ -77,108 +77,146 @@ def load_model(model_name: str, device) -> tuple:
 if __name__ == "__main__":
     args = get_args()
     wrap_model, preprocess, tokenizer = load_model(args.model_name, args.device)
-    from clip_eval.japanese_clip.utils.imagenet_zeroshot_data import imagenet_templates
+    dataset2task = {
+        "imagenet-1k": "classification",
+        "recruit": "classification",
+        "cifar100": "classification",
+        "cifar10": "classification",
+        "food101": "classification",
+        "caltech101": "classification",
+        "crossmodal3600": "retrieval",
+    }
+    task = dataset2task[args.dataset_name]
 
-    templates_df = pd.DataFrame.from_dict(imagenet_templates)
-    templates = templates_df["ja"].values.tolist()
+    if task == "classification":
+        from clip_eval.dataset.imagenet_zeroshot_data import imagenet_templates
 
-    if args.dataset_name == "imagenet-1k":
-        dataset = load_dataset(
-            "ILSVRC/imagenet-1k",
-            split="validation",
-            num_proc=32,
-            trust_remote_code=True,
+        templates_df = pd.DataFrame.from_dict(imagenet_templates)
+        templates = templates_df["ja"].values.tolist()
+
+        if args.dataset_name == "imagenet-1k":
+            dataset = load_dataset(
+                "ILSVRC/imagenet-1k",
+                split="validation",
+                num_proc=32,
+                trust_remote_code=True,
+            )
+            from clip_eval.dataset.imagenet_zeroshot_data import imagenet_classnames
+
+            classes_df = pd.DataFrame.from_dict(imagenet_classnames)
+            classnames = classes_df["ja"].values.tolist()
+
+        elif args.dataset_name == "recruit":
+            dataset = load_dataset(
+                "speed/japanese-image-classification-evaluation-dataset",
+                split="train",
+                num_proc=32,
+                trust_remote_code=True,
+            )
+            classnames = dataset.unique("category")
+            # category to id
+            category_to_id = {category: i for i, category in enumerate(classnames)}
+            dataset = dataset.map(
+                lambda x: {"label": category_to_id[x["category"]]},
+                remove_columns=["category"],
+            )
+            dataset = dataset.map(
+                lambda x: {"image": x["jpg"]}, remove_columns=["jpg"], num_proc=32
+            )
+        elif args.dataset_name == "cifar100":
+            from clip_eval.dataset.cifar100 import LABEL_MAPPING
+
+            dataset = load_dataset(
+                "uoft-cs/cifar100",
+                split="test",
+                num_proc=32,
+                trust_remote_code=True,
+            )
+            classnames_en = dataset.features["fine_label"].names
+            classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
+            dataset = dataset.map(
+                lambda x: {"label": x["fine_label"]},
+                remove_columns=["fine_label"],
+                num_proc=32,
+            )
+            dataset = dataset.rename_column("img", "image")
+        elif args.dataset_name == "cifar10":
+            from clip_eval.dataset.cifar10 import LABEL_MAPPING
+
+            dataset = load_dataset(
+                "uoft-cs/cifar10",
+                split="test",
+                num_proc=32,
+                trust_remote_code=True,
+            )
+            classnames_en = dataset.features["label"].names
+            classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
+            dataset = dataset.rename_column("img", "image")
+        elif args.dataset_name == "food101":
+            from clip_eval.dataset.food101 import LABEL_MAPPING
+
+            dataset = load_dataset("ethz/food101", num_proc=32, split="validation")
+            classnames_en = dataset.features["label"].names
+            classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
+        elif args.dataset_name == "caltech101":
+            from clip_eval.dataset.caltech101 import LABEL_MAPPING
+
+            dataset = load_dataset("flwrlabs/caltech101", num_proc=32, split="train")
+            classnames_en = dataset.features["label"].names
+            classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
+        else:
+            raise ValueError(f"Unknown dataset_name: {args.dataset_name}")
+
+        def collate_fn(batch):
+            # images = [transform(x["image"].convert("RGB")) for x in batch]
+            images = [preprocess(x["image"].convert("RGB")) for x in batch]
+            if isinstance(images[0], torch.Tensor):
+                images = torch.stack(images)
+            targets = torch.tensor([x["label"] for x in batch])
+            return images, targets
+
+        dataloader = torch.utils.data.DataLoader(
+            dataset,
+            batch_size=args.batch_size,
+            shuffle=False,
+            num_workers=2,
+            persistent_workers=True,
+            drop_last=False,
+            collate_fn=collate_fn,
         )
-        from japanese_clip.utils.imagenet_zeroshot_data import imagenet_classnames
-
-        classes_df = pd.DataFrame.from_dict(imagenet_classnames)
-        classnames = classes_df["ja"].values.tolist()
-
-    elif args.dataset_name == "recruit":
-        dataset = load_dataset(
-            "speed/japanese-image-classification-evaluation-dataset",
-            split="train",
-            num_proc=32,
-            trust_remote_code=True,
+        logger.info(
+            f"Start Zero-shot Image Classification: {args.model_name} on {args.dataset_name}"
         )
-        classnames = dataset.unique("category")
-        # category to id
-        category_to_id = {category: i for i, category in enumerate(classnames)}
-        dataset = dataset.map(
-            lambda x: {"label": category_to_id[x["category"]]},
-            remove_columns=["category"],
-        )
-        dataset = dataset.map(
-            lambda x: {"image": x["jpg"]}, remove_columns=["jpg"], num_proc=32
-        )
-    elif args.dataset_name == "cifar100":
-        from clip_eval.dataset.cifar100 import LABEL_MAPPING
+        logger.info(f"{len(classnames)} classes, {len(templates)} templates")
 
-        dataset = load_dataset(
-            "uoft-cs/cifar100",
-            split="test",
-            num_proc=32,
-            trust_remote_code=True,
+        callback = ClassificationCallback(classnames, templates, dataloader)
+        result_dict = callback.zeroshot(wrap_model, tokenizer)
+    elif task == "retrieval":
+        from clip_eval.zeroshot_retrieval import evaluate_retrieval, compute_embeddings
+
+        # TODO: Publish the dataset to HF
+        ds = load_dataset(
+            "webdataset", data_files="crossmodal-3600/data.tar", split="train"
         )
-        classnames_en = dataset.features["fine_label"].names
-        classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
-        dataset = dataset.map(
-            lambda x: {"label": x["fine_label"]},
-            remove_columns=["fine_label"],
-            num_proc=32,
-        )
-        dataset = dataset.rename_column("img", "image")
-    elif args.dataset_name == "cifar10":
-        from clip_eval.dataset.cifar10 import LABEL_MAPPING
+        images = ds["jpg"]
+        texts = ds["txt"]
 
-        dataset = load_dataset(
-            "uoft-cs/cifar10",
-            split="test",
-            num_proc=32,
-            trust_remote_code=True,
-        )
-        classnames_en = dataset.features["label"].names
-        classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
-        dataset = dataset.rename_column("img", "image")
-    elif args.dataset_name == "food101":
-        from clip_eval.dataset.food101 import LABEL_MAPPING
-
-        dataset = load_dataset("ethz/food101", num_proc=32, split="validation")
-        classnames_en = dataset.features["label"].names
-        classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
-    elif args.dataset_name == "caltech101":
-        from clip_eval.dataset.caltech101 import LABEL_MAPPING
-
-        dataset = load_dataset("flwrlabs/caltech101", num_proc=32, split="train")
-        classnames_en = dataset.features["label"].names
-        classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
-    else:
-        raise ValueError(f"Unknown dataset_name: {args.dataset_name}")
-
-    def collate_fn(batch):
-        # images = [transform(x["image"].convert("RGB")) for x in batch]
-        images = [preprocess(x["image"].convert("RGB")) for x in batch]
+        images = [preprocess(image) for image in images]
         if isinstance(images[0], torch.Tensor):
-            images = torch.stack(images)
-        targets = torch.tensor([x["label"] for x in batch])
-        return images, targets
+            images = torch.stack(images).to(wrap_model.device)
 
-    dataloader = torch.utils.data.DataLoader(
-        dataset,
-        batch_size=args.batch_size,
-        shuffle=False,
-        num_workers=2,
-        persistent_workers=True,
-        drop_last=False,
-        collate_fn=collate_fn,
-    )
-    logger.info(
-        f"Start Zero-shot Image Classification: {args.model_name} on {args.dataset_name}"
-    )
-    logger.info(f"{len(classnames)} classes, {len(templates)} templates")
+        image_embeddings, text_embeddings = compute_embeddings(
+            wrap_model, images, texts, tokenizer, args.batch_size
+        )
+        top_k_list = [1, 5, 10]
+        result_dict = {"t2i_recall": {}, "i2t_recall": {}}
+        for top_k in top_k_list:
+            t2i_recall_at_k, i2t_recall_at_k = evaluate_retrieval(
+                image_embeddings, text_embeddings, top_k=top_k
+            )
+            result_dict["t2i_recall"][f"top{top_k}"] = t2i_recall_at_k
+            result_dict["i2t_recall"][f"top{top_k}"] = i2t_recall_at_k
 
-    callback = ClassificationCallback(classnames, templates, dataloader)
-    result_dict = callback.zeroshot(wrap_model, tokenizer)
     result_dir = f"{args.result_dir}/{args.dataset_name}"
     os.makedirs(result_dir, exist_ok=True)
     with open(f"{result_dir}/{args.model_name.replace('/', '-')}.json", "w") as f:
