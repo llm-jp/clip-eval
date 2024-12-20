@@ -6,6 +6,7 @@ import os
 import argparse
 from logging import getLogger, basicConfig
 import json
+import datasets
 
 logger = getLogger(__name__)
 logger.setLevel("INFO")
@@ -80,6 +81,88 @@ def load_model(model_name: str, device) -> tuple:
     return wrap_model, preprocess, tokenizer
 
 
+def get_dataset(
+    dataset_name: str, subcategory: str
+) -> tuple[datasets.Dataset, list[str]]:
+    if dataset_name == "imagenet-1k":
+        dataset = load_dataset(
+            "ILSVRC/imagenet-1k",
+            split="validation",
+            num_proc=32,
+            trust_remote_code=True,
+        )
+        from clip_eval.dataset.imagenet_zeroshot_data import imagenet_classnames
+
+        classes_df = pd.DataFrame.from_dict(imagenet_classnames)
+        classnames = classes_df["ja"].values.tolist()
+    elif dataset_name == "recruit":
+        dataset = load_dataset(
+            "speed/japanese-image-classification-evaluation-datasetv2",
+            split="train",
+            num_proc=32,
+            trust_remote_code=True,
+        )
+        if subcategory:
+            dataset = dataset.filter(
+                lambda x: x["subcategory"] == subcategory,
+                num_proc=32,
+            )
+        classnames = dataset.unique("category")
+        # category to id
+        category_to_id = {category: i for i, category in enumerate(classnames)}
+        dataset = dataset.map(
+            lambda x: {"label": category_to_id[x["category"]]},
+            remove_columns=["category"],
+        )
+        dataset = dataset.map(
+            lambda x: {"image": x["jpg"]}, remove_columns=["jpg"], num_proc=32
+        )
+    elif dataset_name == "cifar100":
+        from clip_eval.dataset.cifar100 import LABEL_MAPPING
+
+        dataset = load_dataset(
+            "uoft-cs/cifar100",
+            split="test",
+            num_proc=32,
+            trust_remote_code=True,
+        )
+        classnames_en = dataset.features["fine_label"].names
+        classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
+        dataset = dataset.map(
+            lambda x: {"label": x["fine_label"]},
+            remove_columns=["fine_label"],
+            num_proc=32,
+        )
+        dataset = dataset.rename_column("img", "image")
+    elif dataset_name == "cifar10":
+        from clip_eval.dataset.cifar10 import LABEL_MAPPING
+
+        dataset = load_dataset(
+            "uoft-cs/cifar10",
+            split="test",
+            num_proc=32,
+            trust_remote_code=True,
+        )
+        classnames_en = dataset.features["label"].names
+        classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
+        dataset = dataset.rename_column("img", "image")
+    elif dataset_name == "food101":
+        from clip_eval.dataset.food101 import LABEL_MAPPING
+
+        dataset = load_dataset("ethz/food101", num_proc=32, split="validation")
+        classnames_en = dataset.features["label"].names
+        classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
+    elif dataset_name == "caltech101":
+        from clip_eval.dataset.caltech101 import LABEL_MAPPING
+
+        dataset = load_dataset("flwrlabs/caltech101", num_proc=32, split="train")
+        classnames_en = dataset.features["label"].names
+        classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
+    else:
+        raise ValueError(f"Unknown dataset_name: {dataset_name}")
+    return dataset, classnames
+
+
 if __name__ == "__main__":
     args = get_args()
     wrap_model, preprocess, tokenizer = load_model(args.model_name, args.device)
@@ -100,85 +183,7 @@ if __name__ == "__main__":
         templates_df = pd.DataFrame.from_dict(imagenet_templates)
         templates = templates_df["ja"].values.tolist()
 
-        if args.dataset_name == "imagenet-1k":
-            dataset = load_dataset(
-                "ILSVRC/imagenet-1k",
-                split="validation",
-                num_proc=32,
-                trust_remote_code=True,
-            )
-            from clip_eval.dataset.imagenet_zeroshot_data import imagenet_classnames
-
-            classes_df = pd.DataFrame.from_dict(imagenet_classnames)
-            classnames = classes_df["ja"].values.tolist()
-
-        elif args.dataset_name == "recruit":
-            dataset = load_dataset(
-                "speed/japanese-image-classification-evaluation-datasetv2",
-                split="train",
-                num_proc=32,
-                trust_remote_code=True,
-            )
-            if args.subcategory:
-                dataset = dataset.filter(
-                    lambda x: x["subcategory"] == args.subcategory,
-                    num_proc=32,
-                )
-            classnames = dataset.unique("category")
-            # category to id
-            category_to_id = {category: i for i, category in enumerate(classnames)}
-            dataset = dataset.map(
-                lambda x: {"label": category_to_id[x["category"]]},
-                remove_columns=["category"],
-            )
-            dataset = dataset.map(
-                lambda x: {"image": x["jpg"]}, remove_columns=["jpg"], num_proc=32
-            )
-
-
-        elif args.dataset_name == "cifar100":
-            from clip_eval.dataset.cifar100 import LABEL_MAPPING
-
-            dataset = load_dataset(
-                "uoft-cs/cifar100",
-                split="test",
-                num_proc=32,
-                trust_remote_code=True,
-            )
-            classnames_en = dataset.features["fine_label"].names
-            classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
-            dataset = dataset.map(
-                lambda x: {"label": x["fine_label"]},
-                remove_columns=["fine_label"],
-                num_proc=32,
-            )
-            dataset = dataset.rename_column("img", "image")
-        elif args.dataset_name == "cifar10":
-            from clip_eval.dataset.cifar10 import LABEL_MAPPING
-
-            dataset = load_dataset(
-                "uoft-cs/cifar10",
-                split="test",
-                num_proc=32,
-                trust_remote_code=True,
-            )
-            classnames_en = dataset.features["label"].names
-            classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
-            dataset = dataset.rename_column("img", "image")
-        elif args.dataset_name == "food101":
-            from clip_eval.dataset.food101 import LABEL_MAPPING
-
-            dataset = load_dataset("ethz/food101", num_proc=32, split="validation")
-            classnames_en = dataset.features["label"].names
-            classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
-        elif args.dataset_name == "caltech101":
-            from clip_eval.dataset.caltech101 import LABEL_MAPPING
-
-            dataset = load_dataset("flwrlabs/caltech101", num_proc=32, split="train")
-            classnames_en = dataset.features["label"].names
-            classnames = [LABEL_MAPPING[cls] for cls in classnames_en]
-        else:
-            raise ValueError(f"Unknown dataset_name: {args.dataset_name}")
+        dataset, classnames = get_dataset(args.dataset_name, args.subcategory)
 
         def collate_fn(batch):
             # images = [transform(x["image"].convert("RGB")) for x in batch]
