@@ -38,6 +38,12 @@ def get_args():
         help="Dataset name",
     )
     parser.add_argument(
+        "--subcategory",
+        type=str,
+        default=None,
+        help="Subcategory (i.e. jafacility20) for recruit dataset",
+    )
+    parser.add_argument(
         "--batch_size",
         type=int,
         default=32,
@@ -108,11 +114,16 @@ if __name__ == "__main__":
 
         elif args.dataset_name == "recruit":
             dataset = load_dataset(
-                "speed/japanese-image-classification-evaluation-dataset",
+                "speed/japanese-image-classification-evaluation-datasetv2",
                 split="train",
                 num_proc=32,
                 trust_remote_code=True,
             )
+            if args.subcategory:
+                dataset = dataset.filter(
+                    lambda x: x["subcategory"] == args.subcategory,
+                    num_proc=32,
+                )
             classnames = dataset.unique("category")
             # category to id
             category_to_id = {category: i for i, category in enumerate(classnames)}
@@ -123,6 +134,8 @@ if __name__ == "__main__":
             dataset = dataset.map(
                 lambda x: {"image": x["jpg"]}, remove_columns=["jpg"], num_proc=32
             )
+
+
         elif args.dataset_name == "cifar100":
             from clip_eval.dataset.cifar100 import LABEL_MAPPING
 
@@ -218,6 +231,8 @@ if __name__ == "__main__":
             result_dict["i2t_recall"][f"top{top_k}"] = i2t_recall_at_k
 
     result_dir = f"{args.result_dir}/{args.dataset_name}"
+    if args.subcategory:
+        result_dir = f"{result_dir}/{args.subcategory}"
     os.makedirs(result_dir, exist_ok=True)
     with open(f"{result_dir}/{args.model_name.replace('/', '-')}.json", "w") as f:
         json.dump(result_dict, f, indent=4, ensure_ascii=False)
