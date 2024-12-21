@@ -67,7 +67,7 @@ python src/clip_eval/tsne_plot.py --model line-corporation/clip-japanese-base --
 The generated image is like this:
 <figure>
   <img src="./images/clip-japanese-base_image_tsne.png" alt="similarity_matrix" style="width:40%">
-  <figcaption>Similarity matrix of embeddings</figcaption>
+  <figcaption>t-SNE plot of image embeddings</figcaption>
 </figure>
 
 
