@@ -93,7 +93,7 @@ The generated image is like this:
 - [`caltech101`](https://huggingface.co/datasets/flwrlabs/caltech101): Caltech-101 image classification dataset
 
 ### Image-Text Retrieval
-- `crossmodal3600`: Cross-modal image-text retrieval dataset
+- [`crossmodal3600`](https://google.github.io/crossmodal-3600): Cross-modal image-text retrieval dataset
 
 ## Reference
 - https://github.com/rinnakk/japanese-clip
