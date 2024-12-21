@@ -57,7 +57,10 @@ You can calculate the similarity matrix of the embeddings (Only first (image,tex
 python src/clip_eval/embedding_analysis.py --model line-corporation/clip-japanese-base --dataset recruit --batch_size 16
 ```
 The generated image is like this:
-![similarity_matrix](./images/clip-japanese-base.png)
+<figure>
+  <img src="./images/clip-japanese-base.png" alt="similarity_matrix" style="width:40%">
+  <figcaption>Similarity matrix of embeddings</figcaption>
+</figure>
 This matrix is calculated by
 ```python
 text_embeddings # (num_classes, embedding_dim)
@@ -74,7 +77,10 @@ You can also visualize the embeddings using t-SNE (Only first 10 classes are use
 python src/clip_eval/tsne_plot.py --model $model --dataset $dataset --batch_size 16
 ```
 The generated image is like this:
-![tsne_plot](./images/tsne_plot.png)
+<figure>
+  <img src="./images/tsne.png" alt="similarity_matrix" style="width:40%">
+  <figcaption>Similarity matrix of embeddings</figcaption>
+</figure>
 
 
 ## Reference
