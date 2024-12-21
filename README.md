@@ -14,6 +14,15 @@ Evaluate CLIP on imagenet-1k dataset.
 ```bash
 python src/clip_eval/eval.py --model  openai/clip-vit-base-patch16 --dataset imagenet-1k
 ```
+The output json file (`results/imagenet-1k/openai-clip-vit-base-patch16.json`) is like this:
+```
+{
+    "top1": 4.1579999999999995,
+    "top5": 8.816,
+    "top10": 11.584,
+    "top100": 30.296
+}
+```
 
 Supported models:
 - line-corporation/clip-japanese-base
