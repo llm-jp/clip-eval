@@ -62,6 +62,7 @@ The generated image is like this:
   <figcaption>Similarity matrix of embeddings</figcaption>
 </figure>
 This matrix is calculated by
+
 ```python
 text_embeddings # (num_classes, embedding_dim)
 image_embeddings # (num_classes, embedding_dim)
