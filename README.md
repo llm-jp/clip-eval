@@ -76,11 +76,11 @@ So, the Left-Top submatrix is the similarity matrix of text embeddings, and the 
 
 You can also visualize the embeddings using t-SNE (Only first 10 classes are used).
 ```bash
-python src/clip_eval/tsne_plot.py --model $model --dataset $dataset --batch_size 16
+python src/clip_eval/tsne_plot.py --model line-corporation/clip-japanese-base --dataset cifar10 --batch_size 16
 ```
 The generated image is like this:
 <figure>
-  <img src="./images/tsne.png" alt="similarity_matrix" style="width:40%">
+  <img src="./images/clip-japanese-base_image_tsne.png" alt="similarity_matrix" style="width:40%">
   <figcaption>Similarity matrix of embeddings</figcaption>
 </figure>
 
