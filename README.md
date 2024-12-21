@@ -67,7 +67,8 @@ This matrix is calculated by
 text_embeddings # (num_classes, embedding_dim)
 image_embeddings # (num_classes, embedding_dim)
 embeddings = torch.cat([text_embeddings, image_embeddings], dim=0) # (2*num_classes, embedding_dim)
-similarity_matrix = torch.mm(embeddings, embeddings.T) # (2*num_classes, 2*num_classes)
+normalized_embeddings = torch.nn.functional.normalize(embeddings, dim=1) # (2*num_classes, embedding_dim)
+similarity_matrix = normalized_embeddings @ normalized_embeddings.T # (2*num_classes, 2*num_classes)
 ```
 So, the Left-Top submatrix is the similarity matrix of text embeddings, and the Right-Bottom submatrix is the similarity matrix of image embeddings. The Right-Top and Left-Bottom submatrices are the similarity between text and image embeddings.
 
