@@ -18,7 +18,8 @@ class WrapModel:
 
     @property
     def device(self):
-        return "cuda"
+        # MEMO: OpenCLIP's CustomTextCLIP object has no attribute 'device'
+        return next(self.model.parameters()).device
 
 
 def load(

@@ -1,36 +1,7 @@
 import torch
 import numpy as np
 from datasets import load_dataset
-
-
-def compute_embeddings(model, images, texts, tokenizer, batch_size=10):
-    """
-    Compute image and text embeddings.
-    """
-    image_embeddings, text_embeddings = [], []
-
-    # Process images in batches
-    for i in range(0, len(images), batch_size):
-        batch_images = images[i : i + batch_size]
-        with torch.no_grad():
-            image_embeddings.append(model.get_image_features(batch_images).cpu())
-
-    # Process texts in batches
-    for i in range(0, len(texts), batch_size):
-        batch_texts = texts[i : i + batch_size]
-        try:
-            batch_texts = tokenizer(batch_texts).to(model.device)
-        except AttributeError:
-            batch_texts = batch_texts
-        with torch.no_grad():
-            text_embeddings.append(model.get_text_features(batch_texts).cpu())
-
-    # Concatenate all embeddings
-    image_embeddings = torch.cat(image_embeddings, dim=0)
-    text_embeddings = torch.cat(text_embeddings, dim=0)
-    image_embeddings = image_embeddings / image_embeddings.norm(dim=-1, keepdim=True)
-    text_embeddings = text_embeddings / text_embeddings.norm(dim=-1, keepdim=True)
-    return image_embeddings, text_embeddings
+from clip_eval.utils import compute_embeddings
 
 
 def evaluate_retrieval(image_embeddings, text_embeddings, top_k=5):

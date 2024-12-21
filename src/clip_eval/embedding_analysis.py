@@ -1,65 +1,12 @@
-from clip_eval.eval import load_model
-import io
-import requests
-from PIL import Image
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from clip_eval.zeroshot_retrieval import compute_embeddings
+from clip_eval.utils import compute_embeddings
 import datasets
 import argparse
-from clip_eval.eval import get_dataset
+from clip_eval.utils import get_dataset, load_model
 import os
 import japanize_matplotlib  # noqa # pylint: disable=unused-import
-
-
-def encode_texts(model, tokenizer, texts, device):
-    tokens = tokenizer(texts).to(device)
-    return model.get_text_features(tokens).cpu().detach().numpy()
-
-
-def encode_images(model, process, image_urls, device):
-    features = []
-    for url in image_urls:
-        try:
-            image = Image.open(io.BytesIO(requests.get(url).content))
-            image = process(image).unsqueeze(0).to(device)
-            features.append(model.get_image_features(image).cpu().detach().numpy())
-        except Exception as e:
-            print(f"Error loading image from {url}: {e}")
-            features.append(
-                np.zeros((1, model.visual.output_dim))
-            )  # Placeholder in case of error
-    return np.vstack(features)
-
-
-def plot_tsne(embeddings_tsne, texts, output_file):
-    plt.figure(figsize=(50, 50))
-    text_embeddings = embeddings_tsne[: len(texts)]
-    image_embeddings = embeddings_tsne[len(texts) :]
-    # plot each category with different color
-    for i, category in enumerate(set(texts)):
-        mask = np.array(texts) == category
-        plt.scatter(
-            text_embeddings[mask, 0], text_embeddings[mask, 1], label=category, s=100
-        )
-    for i, category in enumerate(set(texts)):
-        mask = np.array(texts) == category
-        plt.scatter(
-            image_embeddings[mask, 0],
-            image_embeddings[mask, 1],
-            label=f"Image - {category}",
-            s=100,
-            marker="x",
-        )
-
-    plt.title("TSNE Plot of Text and Image Embeddings")
-    # plot legend only text label
-    handles, labels = plt.gca().get_legend_handles_labels()
-    by_label = dict(zip(labels, handles))
-    plt.legend(by_label.values(), by_label.keys(), loc="upper left", fontsize=14)
-
-    plt.savefig(output_file)
 
 
 def compute_similarity_matrix(embeddings):
@@ -74,16 +21,14 @@ def compute_similarity_matrix(embeddings):
 
 
 def plot_similarity_matrix(similarity_matrix, texts, output_file):
-    plt.figure(figsize=(len(texts), len(texts)))
+    fig_size = min(50, len(texts) // 2)
+    plt.figure(figsize=(fig_size, fig_size))
     # Plot the similarity matrix
     plt.imshow(similarity_matrix, cmap="viridis")
-    # log scale colorbar
     plt.xticks(range(len(texts) * 2), texts + texts, rotation=90, fontsize=14)
     plt.yticks(range(len(texts) * 2), texts + texts, fontsize=14)
 
-    plt.colorbar()
-    plt.title("Similarity Matrix of Text and Image Embeddings")
-
+    plt.tight_layout()
     plt.savefig(output_file)
 
 
@@ -101,6 +46,7 @@ def parse_args():
     parser.add_argument("--result_dir", type=str, default="results")
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--num_classes", type=int, default=None)
     return parser.parse_args()
 
 
@@ -108,24 +54,31 @@ if __name__ == "__main__":
     args = parse_args()
     model, process, tokenizer = load_model(args.model_name, args.device)
     dataset, classnames = get_dataset(args.dataset_name, args.subcategory)
-
-    # dedupulicate by category
-    new_dataset = []
+    if args.num_classes:
+        classnames = classnames[: args.num_classes]
+        dataset = dataset.filter(
+            lambda x: classnames[x["label"]],
+            num_proc=32,
+        )
+    # pick only one example per class
     seen = set()
-    for data in dataset:
-        classname = classnames[data["label"]]
-        if classname not in seen:
-            new_dataset.append(data)
-            seen.add(classname)
-
+    new_dataset = [
+        data
+        for data in dataset
+        if (classname := classnames[data["label"]]) not in seen
+        and not seen.add(classname)
+    ]
     dataset = datasets.Dataset.from_dict(
         {
             "image": [data["image"] for data in new_dataset],
             "category": [classnames[data["label"]] for data in new_dataset],
         }
     )
+    assert len(dataset) == len(classnames)
+
     texts = dataset["category"]
     images = [process(image) for image in dataset["image"]]
+
     if isinstance(images[0], torch.Tensor):
         images = torch.stack(images).to(model.device)
 
@@ -142,13 +95,6 @@ if __name__ == "__main__":
     if args.subcategory:
         result_dir = f"{result_dir}/{args.subcategory}"
     os.makedirs(result_dir, exist_ok=True)
-    # TSNE plot
-    # embeddings_tsne = TSNE(n_components=2, random_state=42).fit_transform(embeddings)
-    # plot_tsne(
-    #     embeddings_tsne,
-    #     texts,
-    #     f"{result_dir}/tsne_{args.model_name.split('/')[-1]}.png",
-    # )
 
     # Similarity matrix
     similarity_matrix = compute_similarity_matrix(embeddings)
