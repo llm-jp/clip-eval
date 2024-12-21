@@ -45,8 +45,9 @@ python src/clip_eval/embedding_analysis.py --model line-corporation/clip-japanes
 The generated image is like this:
 <figure>
   <img src="./images/clip-japanese-base.png" alt="similarity_matrix" style="width:40%">
-  <figcaption>Similarity matrix of embeddings</figcaption>
+  <figcaption>Similarity matrix of embeddings.</figcaption>
 </figure>
+
 This matrix is calculated by
 
 ```python
@@ -67,7 +68,7 @@ python src/clip_eval/tsne_plot.py --model line-corporation/clip-japanese-base --
 The generated image is like this:
 <figure>
   <img src="./images/clip-japanese-base_image_tsne.png" alt="similarity_matrix" style="width:40%">
-  <figcaption>t-SNE plot of image embeddings</figcaption>
+  <figcaption>t-SNE plot of image embeddings.</figcaption>
 </figure>
 
 
