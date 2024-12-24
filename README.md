@@ -99,3 +99,5 @@ The generated image is like this:
 We would like to acknowledge the following codebases that served as the foundation for our work:
 - [japanese-clip](https://github.com/rinnakk/japanese-clip)
 - [CLIP_benchmark](https://github.com/LAION-AI/CLIP_benchmark)
+
+We would also like to express our gratitude to the dataset and model developers.
