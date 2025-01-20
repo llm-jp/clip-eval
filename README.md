@@ -95,6 +95,9 @@ The generated image is like this:
 ### Image-Text Retrieval
 - [`crossmodal3600`](https://google.github.io/crossmodal-3600): Cross-modal image-text retrieval dataset
 
-## Reference
-- https://github.com/rinnakk/japanese-clip
-- https://github.com/LAION-AI/CLIP_benchmark
+## Acknowledgement
+We would like to acknowledge the following codebases that served as the foundation for our work:
+- [japanese-clip](https://github.com/rinnakk/japanese-clip)
+- [CLIP_benchmark](https://github.com/LAION-AI/CLIP_benchmark)
+
+We would also like to express our gratitude to the dataset and model developers.
