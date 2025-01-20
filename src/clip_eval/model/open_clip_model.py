@@ -54,7 +54,9 @@ if __name__ == "__main__":
 
     model_name = "hf-hub:laion/CLIP-ViT-H-14-frozen-xlm-roberta-large-laion5B-s13B-b90k"
     # model_name = "hf-hub:speed/llm-jp-roberta-pretrained-ViT-B-16-relaion-1.5B-lr1e-4-bs8k-accum4-2024112-epoch87"
+    # model_name = "hf-hub:speed/llm-jp-roberta-ViT-L-14-relaion-1.5B-lr5e-4-bs8k-accum4-20241218-epoch90"
     model, processor, tokenizer = load(model_name)
+    print(f"params count: {sum(p.numel() for p in model.model.parameters())}")
 
     image = Image.open(
         io.BytesIO(

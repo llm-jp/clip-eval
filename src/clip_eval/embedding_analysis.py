@@ -9,11 +9,13 @@ import os
 import japanize_matplotlib  # noqa # pylint: disable=unused-import
 
 
-
 def compute_similarity_matrix(embeddings):
-    normalized_embeddings = torch.nn.functional.normalize(embeddings, dim=1)
-    similarity_matrix = torch.matmul(normalized_embeddings, normalized_embeddings.T)
+    normalized_embeddings = embeddings / np.linalg.norm(
+        embeddings, axis=1, keepdims=True
+    )
+    similarity_matrix = np.dot(normalized_embeddings, normalized_embeddings.T)
     return similarity_matrix
+
 
 def plot_similarity_matrix(similarity_matrix, texts, output_file):
     fig_size = min(50, len(texts) // 2)
