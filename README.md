@@ -101,3 +101,30 @@ We would like to acknowledge the following codebases that served as the foundati
 - [CLIP_benchmark](https://github.com/LAION-AI/CLIP_benchmark)
 
 We would also like to express our gratitude to the dataset and model developers.
+
+## Bibtex
+```
+@inproceedings{sugiura-etal-2025-developing,
+    title = "Developing {J}apanese {CLIP} Models Leveraging an Open-weight {LLM} for Large-scale Dataset Translation",
+    author = "Sugiura, Issa  and
+      Kurita, Shuhei  and
+      Oda, Yusuke  and
+      Kawahara, Daisuke  and
+      Okazaki, Naoaki",
+    editor = "Ebrahimi, Abteen  and
+      Haider, Samar  and
+      Liu, Emmy  and
+      Haider, Sammar  and
+      Leonor Pacheco, Maria  and
+      Wein, Shira",
+    booktitle = "Proceedings of the 2025 Conference of the Nations of the Americas Chapter of the Association for Computational Linguistics: Human Language Technologies (Volume 4: Student Research Workshop)",
+    month = apr,
+    year = "2025",
+    address = "Albuquerque, USA",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2025.naacl-srw.15/",
+    pages = "162--170",
+    ISBN = "979-8-89176-192-6",
+    abstract = "CLIP is a foundational model that bridges images and text, widely adopted as a key component in numerous vision-language models.However, the lack of large-scale open Japanese image-text pairs poses a significant barrier to the development of Japanese vision-language models.In this study, we constructed a Japanese image-text pair dataset with 1.5 billion examples using machine translation with open-weight LLMs and pre-trained Japanese CLIP models on the dataset.The performance of the pre-trained models was evaluated across seven benchmark datasets, achieving competitive average scores compared to models of similar size without the need for extensive data curation. However, the results also revealed relatively low performance on tasks specific to Japanese culture, highlighting the limitations of translation-based approaches in capturing cultural nuances. Our dataset, models, and code are publicly available."
+}
+```
